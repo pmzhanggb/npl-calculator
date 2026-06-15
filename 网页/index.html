@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>信用卡不良债权包投资测算</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="control-panel" aria-label="测算参数">
+        <div class="brand-row">
+          <div>
+            <p class="eyebrow">NPL Package Model</p>
+            <h1>信用卡不良债权包投资测算</h1>
+          </div>
+          <button class="ghost-button" id="resetButton" type="button">重置</button>
+        </div>
+
+        <div class="history-toolbar">
+          <button class="ghost-button" id="saveHistoryButton" type="button" title="保存当前参数到本地">
+            <span class="btn-icon" aria-hidden="true">💾</span> 保存当前
+          </button>
+          <button class="ghost-button" id="toggleHistoryButton" type="button" title="查看已保存的参数快照">
+            <span class="btn-icon" aria-hidden="true">📚</span> 历史记录
+            <span class="history-count" id="historyCount">0</span>
+          </button>
+        </div>
+
+        <div class="history-panel" id="historyPanel" hidden>
+          <div class="history-panel-header">
+            <span>本地快照（最多 30 条，存于浏览器 LocalStorage）</span>
+            <button class="text-button danger" id="clearHistoryButton" type="button">清空全部</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+        </div>
+
+        <form id="modelForm" class="parameter-form">
+          <fieldset>
+            <legend>资产包</legend>
+            <label>
+              <span>账面本金</span>
+              <input type="number" id="faceValue" min="0" step="1000000" />
+              <em>元</em>
+            </label>
+            <label>
+              <span>购包价/本金</span>
+              <input type="number" id="purchaseDiscount" min="0" max="100" step="0.1" />
+              <em>%</em>
+            </label>
+            <label>
+              <span>目标劣后IRR</span>
+              <input type="number" id="targetIrr" min="-100" max="200" step="1" />
+              <em>%/年</em>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>年度季回收率</legend>
+            <label>
+              <span>第1年季回收率</span>
+              <input type="number" id="year1QuarterlyRecovery" min="0" max="60" step="0.01" />
+              <em>%/季</em>
+            </label>
+            <label>
+              <span>第2年季回收率</span>
+              <input type="number" id="year2QuarterlyRecovery" min="0" max="60" step="0.01" />
+              <em>%/季</em>
+            </label>
+            <label>
+              <span>第3年季回收率</span>
+              <input type="number" id="year3QuarterlyRecovery" min="0" max="60" step="0.01" />
+              <em>%/季</em>
+            </label>
+            <label>
+              <span>第4年季回收率</span>
+              <input type="number" id="year4QuarterlyRecovery" min="0" max="60" step="0.01" />
+              <em>%/季</em>
+            </label>
+            <label>
+              <span>第5年季回收率</span>
+              <input type="number" id="year5QuarterlyRecovery" min="0" max="60" step="0.01" />
+              <em>%/季</em>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>资金结构</legend>
+            <label>
+              <span>自有资金比例</span>
+              <input type="number" id="equityRatio" min="0" max="100" step="1" />
+              <em>%</em>
+            </label>
+            <label>
+              <span>AMC配资比例</span>
+              <input type="number" id="amcRatio" min="0" max="100" step="1" />
+              <em>%</em>
+            </label>
+            <label>
+              <span>其他融资比例</span>
+              <input type="number" id="mezzRatio" min="0" max="100" step="1" />
+              <em>%</em>
+            </label>
+            <label>
+              <span>AMC年化利率</span>
+              <input type="number" id="amcRate" min="0" max="80" step="0.1" />
+              <em>%/年</em>
+            </label>
+            <label>
+              <span>其他融资利率</span>
+              <input type="number" id="mezzRate" min="0" max="100" step="0.1" />
+              <em>%/年</em>
+            </label>
+            <label>
+              <span>AMC通道费(固定)</span>
+              <input type="number" id="amcChannelFixed" min="0" step="10000" />
+              <em>元</em>
+            </label>
+            <label>
+              <span>AMC通道费率</span>
+              <input type="number" id="amcChannelRate" min="0" max="20" step="0.1" />
+              <em>%对价</em>
+            </label>
+            <label>
+              <span>AMC管理费率</span>
+              <input type="number" id="amcMgmtRate" min="0" max="50" step="0.1" />
+              <em>%回收额</em>
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>处置与返点</legend>
+            <label>
+              <span>催收服务费率</span>
+              <input type="number" id="collectionFeeRate" min="0" max="100" step="0.5" />
+              <em>%回收额</em>
+            </label>
+            <label>
+              <span>诉讼/其他成本率</span>
+              <input type="number" id="legalCostRate" min="0" max="100" step="0.5" />
+              <em>%回收额</em>
+            </label>
+            <label>
+              <span>返点比例</span>
+              <input type="number" id="rebateRate" min="0" max="100" step="0.1" />
+              <em>%回收额</em>
+            </label>
+            <label>
+              <span>月固定运营成本</span>
+              <input type="number" id="monthlyOverhead" min="0" step="1000" />
+              <em>元/月×3</em>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <section class="analysis-panel" aria-label="测算结果">
+        <div class="summary-strip">
+          <article class="metric-card verdict-card">
+            <span>投包结论</span>
+            <strong id="verdict">-</strong>
+            <small id="verdictNote">等待测算</small>
+          </article>
+          <article class="metric-card">
+            <span>劣后IRR</span>
+            <strong id="equityIrr">-</strong>
+            <small id="irrNote">5年自有资金口径(季复利)</small>
+          </article>
+          <article class="metric-card">
+            <span>劣后累计收益</span>
+            <strong id="equityAsset">-</strong>
+            <small id="moic">MOIC -</small>
+          </article>
+          <article class="metric-card">
+            <span>最高可买价格率</span>
+            <strong id="maxDiscount">-</strong>
+            <small id="maxDiscountNote">购包价/账面本金</small>
+          </article>
+          <article class="metric-card">
+            <span>盈亏平衡回收倍率</span>
+            <strong id="breakEvenRecovery">-</strong>
+            <small>5年回收率整体缩放</small>
+          </article>
+          <article class="metric-card">
+            <span>优先级覆盖倍数</span>
+            <strong id="seniorCoverage">-</strong>
+            <small id="coverageNote">AMC + 其他融资</small>
+          </article>
+          <article class="metric-card">
+            <span>盈亏平衡时点</span>
+            <strong id="paybackQuarters">-</strong>
+            <small id="paybackNote">劣后 / AMC / 其他融资</small>
+          </article>
+        </div>
+
+        <div class="workspace-grid">
+          <section class="chart-section" aria-label="各参与方收益趋势">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Waterfall</p>
+                <h2>各参与方收益累计(不含本金)</h2>
+              </div>
+              <div class="legend">
+                <span><i class="amc-dot"></i>AMC累计收益</span>
+                <span><i class="mezz-dot"></i>其他融资累计收益</span>
+                <span><i class="equity-dot"></i>劣后累计收益</span>
+              </div>
+            </div>
+            <div class="chart-wrap">
+              <canvas id="trendChart" width="920" height="340" aria-label="各参与方收益累计趋势图"></canvas>
+              <div class="chart-tooltip" id="chartTooltip" hidden role="tooltip"></div>
+            </div>
+          </section>
+
+          <section class="insight-section" aria-label="决策信号">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Decision</p>
+                <h2>投委口径</h2>
+              </div>
+            </div>
+            <div id="insights" class="insight-list"></div>
+          </section>
+        </div>
+
+        <div class="workspace-grid lower-grid">
+          <section class="sensitivity-section" aria-label="敏感性分析">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Sensitivity</p>
+                <h2>回收倍率 × 购包价格率</h2>
+              </div>
+            </div>
+            <div id="sensitivityGrid" class="sensitivity-grid"></div>
+          </section>
+
+          <section class="table-section" aria-label="季度瀑布明细">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow">Quarterly Detail</p>
+                <h2>5年随收随还季度结算表</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>季度</th>
+                    <th>期初资产本金(元)</th>
+                    <th>当季回收(元)</th>
+                    <th>期末资产本金(元)</th>
+                    <th>AMC累计收益(元)</th>
+                    <th>其他融资累计收益(元)</th>
+                    <th>劣后累计收益(元)</th>
+                    <th>当季返点(元)</th>
+                  </tr>
+                </thead>
+                <tbody id="projectionRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

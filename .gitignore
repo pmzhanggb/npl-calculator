@@ -1,0 +1,71 @@
+# ===== OS =====
+# Windows
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.fuse_hidden*
+.Trash-*
+
+# ===== Editors / IDEs =====
+.vscode/
+!.vscode/extensions.json          # 允许共享扩展列表
+!.vscode/settings.example.json    # 允许共享 settings 模板
+.idea/
+*.swp
+*.swo
+*~
+.directory
+
+# ===== Node / Frontend (项目未来可能引入) =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.parcel-cache/
+.next/
+.nuxt/
+.cache/
+dist/
+build/
+out/
+coverage/
+.nyc_output/
+
+# ===== Logs =====
+logs/
+*.log
+
+# ===== Environment & Secrets =====
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ===== Temporary / Scratch =====
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+*~
+
+# ===== Project-specific =====
+# 浏览器历史快照文件（如果以后扩展为多端）
+.screenshots/
+
+# Claude Code 工具配置（按用户/机器隔离，不入仓库）
+.claude/
