@@ -150,66 +150,128 @@
               <input type="number" id="monthlyOverhead" min="0" step="1000" />
               <em>元/月×3</em>
             </label>
+            <label>
+              <span>打折回收率</span>
+              <input type="number" id="discountRecoveryRate" min="0" max="100" step="0.1" />
+              <em>%实际回款</em>
+            </label>
           </fieldset>
         </form>
       </section>
 
       <section class="analysis-panel" aria-label="测算结果">
-        <div class="summary-strip">
-          <article class="metric-card verdict-card">
-            <span>投包结论</span>
+        <div class="verdict-banner" id="verdictBanner">
+          <div class="verdict-left">
+            <span class="eyebrow">投包结论</span>
             <strong id="verdict">-</strong>
-            <small id="verdictNote">等待测算</small>
+          </div>
+          <small id="verdictNote">等待测算</small>
+        </div>
+
+        <div class="participant-grid">
+          <article class="participant-card amc-card">
+            <header>
+              <span class="participant-eyebrow">优先级资金 · AMC</span>
+              <h3>AMC 配资</h3>
+            </header>
+            <dl class="line-items">
+              <dt class="neg">T0 配资本金</dt><dd id="amcInitialOut">-</dd>
+              <dt>一次性通道费</dt><dd id="amcChannelFeeLine">-</dd>
+              <dt>累计利息收入</dt><dd id="amcInterestLine">-</dd>
+              <dt>累计管理费</dt><dd id="amcMgmtLine">-</dd>
+              <dt>累计本金回收</dt><dd id="amcPrincipalLine">-</dd>
+            </dl>
+            <hr class="card-divider" />
+            <dl class="key-metrics">
+              <dt>累计净收益</dt><dd id="amcNetProfit" class="metric-strong">-</dd>
+              <dt>IRR (年化)</dt><dd id="amcIrr">-</dd>
+              <dt>MOIC</dt><dd id="amcMoic">-</dd>
+              <dt>年化 ROI</dt><dd id="amcRoi">-</dd>
+              <dt>盈亏平衡</dt><dd id="amcPayback">-</dd>
+            </dl>
           </article>
-          <article class="metric-card">
-            <span>劣后IRR</span>
-            <strong id="equityIrr">-</strong>
-            <small id="irrNote">5年自有资金口径(季复利)</small>
+
+          <article class="participant-card mezz-card">
+            <header>
+              <span class="participant-eyebrow">优先级资金 · 其他融资</span>
+              <h3>其他融资 (Mezz)</h3>
+            </header>
+            <dl class="line-items">
+              <dt class="neg">T0 配资本金</dt><dd id="mezzInitialOut">-</dd>
+              <dt>累计利息收入</dt><dd id="mezzInterestLine">-</dd>
+              <dt>累计本金回收</dt><dd id="mezzPrincipalLine">-</dd>
+            </dl>
+            <hr class="card-divider" />
+            <dl class="key-metrics">
+              <dt>累计净收益</dt><dd id="mezzNetProfit" class="metric-strong">-</dd>
+              <dt>IRR (年化)</dt><dd id="mezzIrr">-</dd>
+              <dt>MOIC</dt><dd id="mezzMoic">-</dd>
+              <dt>年化 ROI</dt><dd id="mezzRoi">-</dd>
+              <dt>盈亏平衡</dt><dd id="mezzPayback">-</dd>
+            </dl>
           </article>
-          <article class="metric-card">
-            <span>劣后累计收益</span>
-            <strong id="equityAsset">-</strong>
-            <small id="moic">MOIC -</small>
-          </article>
-          <article class="metric-card">
-            <span>最高可买价格率</span>
-            <strong id="maxDiscount">-</strong>
-            <small id="maxDiscountNote">购包价/账面本金</small>
-          </article>
-          <article class="metric-card">
-            <span>盈亏平衡回收倍率</span>
-            <strong id="breakEvenRecovery">-</strong>
-            <small>5年回收率整体缩放</small>
-          </article>
-          <article class="metric-card">
-            <span>优先级覆盖倍数</span>
-            <strong id="seniorCoverage">-</strong>
-            <small id="coverageNote">AMC + 其他融资</small>
-          </article>
-          <article class="metric-card">
-            <span>盈亏平衡时点</span>
-            <strong id="paybackQuarters">-</strong>
-            <small id="paybackNote">劣后 / AMC / 其他融资</small>
+
+          <article class="participant-card equity-card">
+            <header>
+              <span class="participant-eyebrow">劣后资金 · 自有资金</span>
+              <h3>劣后 (Equity)</h3>
+            </header>
+            <dl class="line-items">
+              <dt class="neg">T0 自有出资</dt><dd id="equityInitialOut">-</dd>
+              <dt class="neg">T1 一次性通道费</dt><dd id="equityChannelFee">-</dd>
+              <dt>累计回收分成</dt><dd id="equityRecoveryShare">-</dd>
+              <dt>累计返点</dt><dd id="equityRebate">-</dd>
+              <dt class="neg">− 累计运营成本</dt><dd id="equityOverhead">-</dd>
+              <dt class="neg">− 累计 Mezz 利息</dt><dd id="equityMezzInterest">-</dd>
+            </dl>
+            <hr class="card-divider" />
+            <dl class="key-metrics">
+              <dt>累计净收益</dt><dd id="equityNetProfit" class="metric-strong">-</dd>
+              <dt>IRR (年化)</dt><dd id="equityIrr">-</dd>
+              <dt>MOIC</dt><dd id="equityMoic">-</dd>
+              <dt>盈亏平衡</dt><dd id="equityPayback">-</dd>
+            </dl>
           </article>
         </div>
 
-        <div class="workspace-grid">
-          <section class="chart-section" aria-label="各参与方收益趋势">
+        <section class="flow-overview" aria-label="5年资金流向总览">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Flow Overview</p>
+              <h2>5年资金流向总览</h2>
+            </div>
+            <small class="flow-hint">从资产本金到各方兑付，5 年累计单位：元</small>
+          </div>
+          <div class="flow-diagram" id="flowDiagram"></div>
+        </section>
+
+        <section class="cashflow-section" aria-label="季度现金分配瀑布">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Quarterly Cashflow</p>
+              <h2>季度现金分配瀑布</h2>
+            </div>
+            <div class="legend">
+              <span><i class="amc-dot"></i>AMC 当季流入</span>
+              <span><i class="mezz-dot"></i>Mezz 当季流入</span>
+              <span><i class="equity-dot"></i>劣后 当季净分录</span>
+            </div>
+          </div>
+          <div class="chart-wrap chart-wrap-tall">
+            <canvas id="cashflowChart" width="1100" height="380" aria-label="季度现金分配瀑布图"></canvas>
+            <div class="chart-tooltip" id="chartTooltip" hidden role="tooltip"></div>
+          </div>
+        </section>
+
+        <div class="workspace-grid stacked-grid">
+          <section class="sensitivity-section" aria-label="敏感性分析">
             <div class="section-heading">
               <div>
-                <p class="eyebrow">Waterfall</p>
-                <h2>各参与方收益累计(不含本金)</h2>
-              </div>
-              <div class="legend">
-                <span><i class="amc-dot"></i>AMC累计收益</span>
-                <span><i class="mezz-dot"></i>其他融资累计收益</span>
-                <span><i class="equity-dot"></i>劣后累计收益</span>
+                <p class="eyebrow">Sensitivity</p>
+                <h2>回收倍率 × 购包价格率</h2>
               </div>
             </div>
-            <div class="chart-wrap">
-              <canvas id="trendChart" width="920" height="340" aria-label="各参与方收益累计趋势图"></canvas>
-              <div class="chart-tooltip" id="chartTooltip" hidden role="tooltip"></div>
-            </div>
+            <div id="sensitivityGrid" class="sensitivity-grid"></div>
           </section>
 
           <section class="insight-section" aria-label="决策信号">
@@ -223,43 +285,36 @@
           </section>
         </div>
 
-        <div class="workspace-grid lower-grid">
-          <section class="sensitivity-section" aria-label="敏感性分析">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Sensitivity</p>
-                <h2>回收倍率 × 购包价格率</h2>
-              </div>
+        <section class="table-section" aria-label="季度分配瀑布明细">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">Quarterly Detail</p>
+              <h2>5年随收随还季度分配瀑布表</h2>
             </div>
-            <div id="sensitivityGrid" class="sensitivity-grid"></div>
-          </section>
-
-          <section class="table-section" aria-label="季度瀑布明细">
-            <div class="section-heading">
-              <div>
-                <p class="eyebrow">Quarterly Detail</p>
-                <h2>5年随收随还季度结算表</h2>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>季度</th>
-                    <th>期初资产本金(元)</th>
-                    <th>当季回收(元)</th>
-                    <th>期末资产本金(元)</th>
-                    <th>AMC累计收益(元)</th>
-                    <th>其他融资累计收益(元)</th>
-                    <th>劣后累计收益(元)</th>
-                    <th>当季返点(元)</th>
-                  </tr>
-                </thead>
-                <tbody id="projectionRows"></tbody>
-              </table>
-            </div>
-          </section>
-        </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>季度</th>
+                  <th>期初资产本金(元)</th>
+                  <th>当季回收(元)</th>
+                  <th>扣减后净额(元)</th>
+                  <th>AMC利息(元)</th>
+                  <th>AMC本金(元)</th>
+                  <th>Mezz利息(元)</th>
+                  <th>Mezz本金(元)</th>
+                  <th>劣后净分录(元)</th>
+                  <th>当季返点(元)</th>
+                  <th>AMC累计收益(元)</th>
+                  <th>Mezz累计收益(元)</th>
+                  <th>劣后累计收益(元)</th>
+                </tr>
+              </thead>
+              <tbody id="projectionRows"></tbody>
+            </table>
+          </div>
+        </section>
       </section>
     </main>
 

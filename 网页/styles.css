@@ -403,6 +403,367 @@ td.negative {
   color: var(--red);
 }
 
+/* ====== 投包结论 横条 ====== */
+.verdict-banner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.verdict-banner.good {
+  border-left-color: var(--green);
+  background: #e6f4ed;
+}
+
+.verdict-banner.watch {
+  border-left-color: var(--amber);
+  background: #fcf2dd;
+}
+
+.verdict-banner.risk {
+  border-left-color: var(--red);
+  background: #fbe7e6;
+}
+
+.verdict-banner .verdict-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex: 0 0 auto;
+}
+
+.verdict-banner .eyebrow {
+  margin: 0;
+}
+
+.verdict-banner strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.verdict-banner.good strong {
+  color: var(--green-dark);
+}
+
+.verdict-banner.watch strong {
+  color: #7a4b0d;
+}
+
+.verdict-banner.risk strong {
+  color: #8f2f2d;
+}
+
+.verdict-banner small {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ====== 三参与方卡 ====== */
+.participant-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.participant-card {
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.participant-card.amc-card {
+  border-top-color: var(--amber);
+}
+
+.participant-card.mezz-card {
+  border-top-color: #7c5aa6;
+}
+
+.participant-card.equity-card {
+  border-top-color: var(--green);
+}
+
+.participant-card header {
+  margin-bottom: 12px;
+}
+
+.participant-eyebrow {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.participant-card h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.amc-card h3 {
+  color: var(--amber);
+}
+
+.mezz-card h3 {
+  color: #7c5aa6;
+}
+
+.equity-card h3 {
+  color: var(--green-dark);
+}
+
+.line-items {
+  margin: 0 0 12px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 13px;
+}
+
+.line-items .neg {
+  color: #8f2f2d;
+}
+
+.line-items div,
+.line-items dt,
+.line-items dd {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.line-items dt,
+.line-items dd {
+  display: flex;
+  margin: 0;
+}
+
+.line-items dt {
+  color: var(--muted);
+}
+
+.line-items dd {
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.card-divider {
+  margin: 4px 0 12px;
+  border: 0;
+  border-top: 1px dashed var(--line);
+}
+
+.key-metrics {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.key-metrics dt,
+.key-metrics dd {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.key-metrics dt {
+  color: var(--muted);
+}
+
+.key-metrics dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.metric-strong {
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+.amc-card .metric-strong {
+  color: var(--amber);
+}
+
+.mezz-card .metric-strong {
+  color: #7c5aa6;
+}
+
+.equity-card .metric-strong {
+  color: var(--green-dark);
+}
+
+/* ====== 5 年资金流向总览 ====== */
+.flow-overview {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 16px;
+}
+
+.flow-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.flow-diagram {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.flow-node {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-width: 130px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+}
+
+.flow-source-node {
+  background: #eef2f0;
+  border-color: var(--green);
+}
+
+.flow-recovery-node {
+  background: #e6f4ed;
+  border-color: var(--green);
+}
+
+.flow-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.flow-value {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.flow-value.green {
+  color: var(--green-dark);
+}
+
+.flow-value.purple {
+  color: #7c5aa6;
+}
+
+.flow-value.amber {
+  color: var(--amber);
+}
+
+.flow-value.red {
+  color: var(--red);
+}
+
+.flow-node small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+.flow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--muted);
+  padding: 0 2px;
+  align-self: center;
+}
+
+.flow-branches {
+  display: flex;
+  flex: 1;
+  min-width: 280px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.flow-branch {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.flow-branch-priority {
+  border-top: 3px solid var(--amber);
+}
+
+.flow-branch-equity {
+  border-top: 3px solid var(--green);
+}
+
+.flow-branch-cost {
+  border-top: 3px solid var(--red);
+}
+
+/* ====== 季度现金分配瀑布图 ====== */
+.cashflow-section {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  margin-bottom: 16px;
+}
+
+.chart-wrap-tall {
+  position: relative;
+  height: 360px;
+  margin-top: 14px;
+}
+
+
+
 .workspace-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.42fr) minmax(300px, 0.58fr);
@@ -413,6 +774,11 @@ td.negative {
 .lower-grid {
   grid-template-columns: minmax(360px, 0.76fr) minmax(0, 1.24fr);
   margin-bottom: 0;
+}
+
+.stacked-grid {
+  grid-template-columns: 1fr;
+  margin-bottom: 16px;
 }
 
 .chart-section,
@@ -459,7 +825,7 @@ td.negative {
 
 .chart-wrap {
   position: relative;
-  height: 318px;
+  height: 360px;
   margin-top: 14px;
 }
 
@@ -597,6 +963,18 @@ canvas {
   place-items: center;
 }
 
+.cell-irr {
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.cell-moic {
+  font-size: 11px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
 .cell.head {
   background: #eef2f0;
   color: var(--muted);
@@ -657,6 +1035,14 @@ th {
 @media (max-width: 1320px) {
   .summary-strip {
     grid-template-columns: repeat(4, minmax(150px, 1fr));
+  }
+
+  .participant-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .flow-branches {
+    flex-direction: column;
   }
 }
 
