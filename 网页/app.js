@@ -1,29 +1,16 @@
-const QUARTERS = 20;
-const QUARTERS_PER_YEAR = 4;
+// 视图层 — DOM 绑定 + 渲染 + 历史快照持久化
+// 测算逻辑在 model.js（纯函数，可在 Node 环境单测）
+"use strict";
 
-const defaults = {
-  faceValue: 100000000,
-  purchaseDiscount: 2.8,
-  targetIrr: 25,
-  year1QuarterlyRecovery: 1.05,
-  year2QuarterlyRecovery: 0.72,
-  year3QuarterlyRecovery: 0.48,
-  year4QuarterlyRecovery: 0.30,
-  year5QuarterlyRecovery: 0.18,
-  equityRatio: 25,
-  amcRatio: 55,
-  mezzRatio: 20,
-  amcRate: 8,
-  mezzRate: 14,
-  amcChannelFixed: 500000,
-  amcChannelRate: 1.5,
-  amcMgmtRate: 5,
-  collectionFeeRate: 18,
-  legalCostRate: 3,
-  rebateRate: 2,
-  monthlyOverhead: 80000,
-  discountRecoveryRate: 0,
-};
+const {
+  financing,
+  project,
+  classify,
+  findBreakEvenMultiplier,
+  defaults: MODEL_DEFAULTS,
+} = window.NPLModel;
+
+const defaults = MODEL_DEFAULTS;
 
 const fields = Object.keys(defaults);
 const form = document.querySelector("#modelForm");
@@ -38,10 +25,6 @@ let currentHoverIndex = -1;
 const currency = new Intl.NumberFormat("zh-CN", {
   style: "currency",
   currency: "CNY",
-  maximumFractionDigits: 0,
-});
-
-const number = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 0,
 });
 
@@ -77,390 +60,6 @@ function getInputs() {
     values[field] = Number(document.querySelector(`#${field}`).value) || 0;
     return values;
   }, {});
-}
-
-function recoveryRates(values, multiplier = 1) {
-  return [
-    values.year1QuarterlyRecovery,
-    values.year2QuarterlyRecovery,
-    values.year3QuarterlyRecovery,
-    values.year4QuarterlyRecovery,
-    values.year5QuarterlyRecovery,
-  ].map((rate) => (rate / 100) * multiplier);
-}
-
-function financing(values) {
-  const purchasePrice = values.faceValue * (values.purchaseDiscount / 100);
-  const totalRatio = values.equityRatio + values.amcRatio + values.mezzRatio || 1;
-  return {
-    purchasePrice,
-    equity: purchasePrice * (values.equityRatio / totalRatio),
-    amc: purchasePrice * (values.amcRatio / totalRatio),
-    mezz: purchasePrice * (values.mezzRatio / totalRatio),
-  };
-}
-
-function project(values, options = {}) {
-  const multiplier = options.recoveryMultiplier ?? 1;
-  const funds = financing(values);
-  const yearlyRates = recoveryRates(values, multiplier);
-  const rows = [];
-  const equityCashFlows = [-funds.equity];
-
-  // AMC 一次性通道费：固定 + 对价 × 费率；首期一次性从劣后支出
-  const channelFee = funds.amc > 0
-    ? values.amcChannelFixed + funds.purchasePrice * (values.amcChannelRate / 100)
-    : 0;
-  if (channelFee > 0) {
-    equityCashFlows.push(-channelFee);
-  }
-
-  let assetPrincipal = values.faceValue;
-  let amcPrincipal = funds.amc;
-  let mezzPrincipal = funds.mezz;
-  let cumulativeEquityAsset = -funds.equity - channelFee;
-  // AMC 累计净收益起点 = T0 配资出, 循环结束 = Q20 累计 = 卡片"累计净收益"
-  let cumulativeAmcRevenue = -funds.amc;
-  // Mezz 累计净收益起点 = T0 配资出, 循环结束 = Q20 累计 = 卡片"累计净收益"
-  let cumulativeMezzRevenue = -funds.mezz;
-  let cumulativeMezzInterest = -funds.mezz;
-  let cumulativeAmcPaid = 0;
-  let cumulativeMezzPaid = 0;
-  let cumulativeMezzPrincipalPaid = 0;
-  let totalAmcPaid = 0;
-  let totalMezzPaid = 0;
-  let totalMezzPrincipalPaid = 0;
-  let totalMezzInterestPaid = 0;
-  let totalAmcInterestPaid = 0;
-  let totalAmcPrincipalPaid = 0;
-  let totalRecoveryShare = 0;
-  let totalResidual = 0;
-  let totalRebate = 0;
-  let totalCosts = 0;
-  let totalRecovery = 0;
-  let totalMgmtFee = 0;
-  let totalOverhead = 0;
-  let totalChannelFee = channelFee;
-  let totalWritedown = 0;
-  let worstQuarterlyEquityCash = 0;
-  let paybackQuarter = null;
-  let amcPaybackQuarter = null;
-  let mezzPaybackQuarter = null;
-
-  for (let quarter = 1; quarter <= QUARTERS; quarter += 1) {
-    const yearIndex = Math.min(Math.floor((quarter - 1) / QUARTERS_PER_YEAR), 4);
-    const beginningAssetPrincipal = assetPrincipal;
-    const quarterlyRate = yearlyRates[yearIndex];
-    const grossRecovery = Math.min(assetPrincipal, beginningAssetPrincipal * quarterlyRate);
-    // 打折回收：实际回款不变, 但账面本金额外抹销 X%
-    const discountRate = (values.discountRecoveryRate || 0) / 100;
-    const effectiveWritedown = grossRecovery * (1 + discountRate);
-    assetPrincipal = Math.max(0, assetPrincipal - effectiveWritedown);
-    totalWritedown += grossRecovery * discountRate;
-
-    const collectionFee = grossRecovery * (values.collectionFeeRate / 100);
-    const legalCost = grossRecovery * (values.legalCostRate / 100);
-    const mgmtFee = grossRecovery * (values.amcMgmtRate / 100);
-    // AMC 管理费从回收款中预扣，不从劣后垫付
-    const distributable = Math.max(0, grossRecovery - collectionFee - legalCost - mgmtFee);
-    const rebate = grossRecovery * (values.rebateRate / 100);
-    const quarterlyOverhead = values.monthlyOverhead * 3;
-
-    const amcInterestDue = amcPrincipal * (values.amcRate / 100 / QUARTERS_PER_YEAR);
-    const amcPaid = Math.min(distributable, amcInterestDue + amcPrincipal);
-    const amcInterestPaid = Math.min(amcPaid, amcInterestDue);
-    const amcPrincipalPaid = Math.max(0, amcPaid - amcInterestPaid);
-    amcPrincipal = Math.max(0, amcPrincipal - amcPrincipalPaid);
-
-    const afterAmc = distributable - amcPaid;
-    // Mezz 利息：按当期剩余本金计提（利随本清），劣后刚性兑付（与可分配额无关）
-    const mezzInterestDue =
-      mezzPrincipal > 0 ? mezzPrincipal * (values.mezzRate / 100 / QUARTERS_PER_YEAR) : 0;
-    // Mezz 本金：仅从可分配额中兑付
-    const mezzPrincipalPaid = Math.min(afterAmc, mezzPrincipal);
-    mezzPrincipal = Math.max(0, mezzPrincipal - mezzPrincipalPaid);
-
-    const residual = Math.max(0, afterAmc - mezzPrincipalPaid);
-    // 劣后承担：剩余可分配 + 返点 − 季运营 − Mezz 当季利息（刚性兑付，付不起也照扣）
-    // AMC 管理费已从回收款预扣，不再从劣后扣除
-    const equityCash = residual + rebate - quarterlyOverhead - mezzInterestDue;
-    cumulativeEquityAsset += equityCash;
-    equityCashFlows.push(equityCash);
-
-    // AMC 累计净收益 = 利息 + 管理费 + 本金偿还（+ 首季一次性通道费）
-    cumulativeAmcRevenue += amcInterestPaid + mgmtFee + amcPrincipalPaid;
-    if (quarter === 1 && channelFee > 0) {
-      cumulativeAmcRevenue += channelFee;
-    }
-    // Mezz 累计净收益 = 利息（劣后兜底）+ 本金偿还
-    cumulativeMezzRevenue += mezzInterestDue + mezzPrincipalPaid;
-    // Mezz 累计收益（仅利息，不含本金偿还）
-    cumulativeMezzInterest += mezzInterestDue;
-
-    totalAmcPaid += amcPaid;
-    totalAmcInterestPaid += amcInterestPaid;
-    totalAmcPrincipalPaid += amcPrincipalPaid;
-    totalMezzPaid += mezzPrincipalPaid;
-    totalMezzPrincipalPaid += mezzPrincipalPaid;
-    totalMezzInterestPaid += mezzInterestDue;
-    totalRecoveryShare += residual + rebate;
-    totalResidual += residual;
-    totalRebate += rebate;
-    totalCosts += collectionFee + legalCost + quarterlyOverhead + mgmtFee;
-    totalRecovery += grossRecovery;
-    totalMgmtFee += mgmtFee;
-    totalOverhead += quarterlyOverhead;
-    worstQuarterlyEquityCash = Math.min(worstQuarterlyEquityCash, equityCash);
-
-    cumulativeAmcPaid += amcPaid;
-    cumulativeMezzPaid += mezzPrincipalPaid;
-    cumulativeMezzPrincipalPaid += mezzPrincipalPaid;
-    if (paybackQuarter === null && cumulativeEquityAsset >= 0) {
-      paybackQuarter = quarter;
-    }
-    if (
-      amcPaybackQuarter === null &&
-      funds.amc > 0 &&
-      cumulativeAmcPaid >= funds.amc
-    ) {
-      amcPaybackQuarter = quarter;
-    }
-    if (
-      mezzPaybackQuarter === null &&
-      funds.mezz > 0 &&
-      cumulativeMezzPrincipalPaid >= funds.mezz
-    ) {
-      mezzPaybackQuarter = quarter;
-    }
-
-    rows.push({
-      quarter,
-      year: yearIndex + 1,
-      quarterlyRate,
-      beginningAssetPrincipal,
-      grossRecovery,
-      endingAssetPrincipal: assetPrincipal,
-      collectionFee,
-      legalCost,
-      distributable,
-      amcInterestPaid,
-      amcPrincipalPaid,
-      amcPaid,
-      mezzInterestDue,
-      mezzPrincipalPaid,
-      mezzPaid: mezzPrincipalPaid,
-      rebate,
-      mgmtFee,
-      quarterlyOverhead,
-      residual,
-      recoveryShare: residual + rebate,
-      equityCash,
-      cumulativeEquityAsset,
-      amcCumulativeRevenue: cumulativeAmcRevenue,
-      mezzCumulativeRevenue: cumulativeMezzRevenue,
-      mezzCumulativeInterest: cumulativeMezzInterest,
-      cumulativeMezzPrincipalPaid,
-      amcBalance: amcPrincipal,
-      mezzBalance: mezzPrincipal,
-      seniorBalance: amcPrincipal + mezzPrincipal,
-    });
-  }
-
-  const irr = annualizedIrr(equityCashFlows);
-  const equityProfit = cumulativeEquityAsset;
-  const moic = funds.equity > 0 ? (funds.equity + equityProfit) / funds.equity : 0;
-  const seniorObligation = funds.amc + funds.mezz;
-  const seniorCoverage = seniorObligation > 0 ? (totalAmcPaid + totalMezzPaid) / seniorObligation : Infinity;
-
-  // AMC 现金流：T0 配资出 → 后续每季利息 + 管理费 + 本金偿还 + 首季通道费
-  const amcCashFlows = funds.amc > 0 ? [-funds.amc] : [];
-  for (let i = 0; i < rows.length; i += 1) {
-    const r = rows[i];
-    let inflow = r.amcInterestPaid + r.mgmtFee + r.amcPrincipalPaid;
-    if (i === 0 && channelFee > 0) inflow += channelFee;
-    amcCashFlows.push(inflow);
-  }
-  const amcIrr = funds.amc > 0 ? annualizedIrr(amcCashFlows) : NaN;
-  const amcTotalRevenue = channelFee + totalAmcInterestPaid + totalMgmtFee + totalAmcPrincipalPaid;
-  // AMC 净收益：直接用累计终值（已含 T0 负出资），保证 DETAIL 表 Q20 = 卡片
-  const amcNetProfit = funds.amc > 0 ? cumulativeAmcRevenue : 0;
-  const amcMoic = funds.amc > 0 ? amcTotalRevenue / funds.amc : 0;
-  const amcRoi = funds.amc > 0 ? ((amcNetProfit / funds.amc) / 5) * 100 : NaN;
-
-  // Mezz 现金流：T0 配资出 → 后续每季应收利息（劣后刚性兑付）+ 本金偿还
-  const mezzCashFlows = funds.mezz > 0 ? [-funds.mezz] : [];
-  for (let i = 0; i < rows.length; i += 1) {
-    const r = rows[i];
-    mezzCashFlows.push(r.mezzInterestDue + r.mezzPrincipalPaid);
-  }
-  const mezzIrr = funds.mezz > 0 ? annualizedIrr(mezzCashFlows) : NaN;
-  const mezzTotalRevenue = totalMezzInterestPaid + totalMezzPrincipalPaid;
-  // Mezz 净收益：直接用累计终值（已含 T0 负出资）
-  const mezzNetProfit = funds.mezz > 0 ? cumulativeMezzRevenue : 0;
-  const mezzMoic = funds.mezz > 0 ? mezzTotalRevenue / funds.mezz : 0;
-  const mezzRoi = funds.mezz > 0 ? ((mezzNetProfit / funds.mezz) / 5) * 100 : NaN;
-
-  return {
-    rows,
-    funds,
-    equityCashFlows,
-    amcCashFlows,
-    mezzCashFlows,
-    faceValue: values.faceValue,
-    irr,
-    equityProfit,
-    moic,
-    paybackQuarter,
-    amcPaybackQuarter,
-    mezzPaybackQuarter,
-    seniorCoverage,
-    remainingSeniorPrincipal: amcPrincipal + mezzPrincipal,
-    remainingAssetPrincipal: assetPrincipal,
-    totalRecovery,
-    totalAmcPaid,
-    totalAmcInterestPaid,
-    totalAmcPrincipalPaid,
-    totalMezzPaid,
-    totalMezzPrincipalPaid,
-    totalMezzInterestPaid,
-    totalResidual,
-    totalRebate,
-    totalMgmtFee,
-    totalOverhead,
-    totalChannelFee,
-    amcTotalRevenue,
-    amcNetProfit,
-    amcMoic,
-    amcIrr,
-    amcRoi,
-    mezzTotalRevenue,
-    mezzNetProfit,
-    mezzMoic,
-    mezzIrr,
-    mezzRoi,
-    totalCosts,
-    worstQuarterlyEquityCash,
-    amcTotalRevenue,
-    amcRoi,
-    mezzRoi,
-    totalWritedown,
-  };
-}
-
-function annualizedIrr(cashFlows) {
-  const npv = (rate) =>
-    cashFlows.reduce((sum, cash, index) => sum + cash / Math.pow(1 + rate, index), 0);
-  const roots = [];
-  const minRate = -0.95;
-  const maxRate = 20;
-  const steps = 1800;
-  let left = minRate;
-  let leftValue = npv(left);
-
-  for (let step = 1; step <= steps; step += 1) {
-    const right = minRate + ((maxRate - minRate) * step) / steps;
-    const rightValue = npv(right);
-    if (leftValue === 0 || leftValue * rightValue < 0) {
-      roots.push(solveRoot(left, right, npv));
-    }
-    left = right;
-    leftValue = rightValue;
-  }
-
-  if (!roots.length) return NaN;
-  const quarterlyRate = Math.max(...roots);
-  return (Math.pow(1 + quarterlyRate, QUARTERS_PER_YEAR) - 1) * 100;
-}
-
-function solveRoot(low, high, fn) {
-  let lowValue = fn(low);
-  for (let i = 0; i < 80; i += 1) {
-    const mid = (low + high) / 2;
-    const midValue = fn(mid);
-    if (lowValue * midValue <= 0) {
-      high = mid;
-    } else {
-      low = mid;
-      lowValue = midValue;
-    }
-  }
-  return (low + high) / 2;
-}
-
-function findBreakEvenMultiplier(values) {
-  return binarySearch(0, 5, (candidate) => {
-    const result = project(values, { recoveryMultiplier: candidate });
-    return result.equityProfit;
-  });
-}
-
-function findMaxDiscount(values) {
-  const low = 0.1;
-  const high = 20;
-  const score = (candidate) => {
-    const result = project({ ...values, purchaseDiscount: candidate });
-    return Number.isFinite(result.irr) ? result.irr - values.targetIrr : -999;
-  };
-  if (score(low) < 0) return NaN;
-  if (score(high) >= 0) return high;
-
-  let left = low;
-  let right = high;
-  for (let i = 0; i < 60; i += 1) {
-    const mid = (left + right) / 2;
-    if (score(mid) >= 0) {
-      left = mid;
-    } else {
-      right = mid;
-    }
-  }
-  return left;
-}
-
-function binarySearch(low, high, score) {
-  const lowScore = score(low);
-  const highScore = score(high);
-  if (lowScore >= 0) return low;
-  if (highScore < 0) return NaN;
-
-  for (let i = 0; i < 60; i += 1) {
-    const mid = (low + high) / 2;
-    if (score(mid) >= 0) {
-      high = mid;
-    } else {
-      low = mid;
-    }
-  }
-  return high;
-}
-
-function classify(result, values) {
-  if (
-    Number.isFinite(result.irr) &&
-    result.irr >= values.targetIrr &&
-    result.equityProfit > 0 &&
-    result.remainingSeniorPrincipal <= 1
-  ) {
-    return {
-      label: "可以买",
-      className: "good",
-      note: "达到目标IRR，且优先级资金已清偿",
-    };
-  }
-
-  if (result.remainingSeniorPrincipal <= 1 && result.equityProfit > 0) {
-    return {
-      label: "可谈价",
-      className: "watch",
-      note: "项目赚钱，但劣后收益未达到目标口径",
-    };
-  }
-
-  return {
-    label: "不建议",
-    className: "risk",
-    note: "优先级清偿或劣后收益存在明显压力",
-  };
 }
 
 // ============ 参与方卡渲染 ============
@@ -536,21 +135,14 @@ function renderMetrics(result, values) {
 function renderFlowOverview(result, values) {
   const container = document.querySelector("#flowDiagram");
   const recovery = result.totalRecovery;
-  // 优先级总兑付 = AMC 累计实收 + Mezz 累计实收
   const amcCashReceived = result.totalChannelFee + result.totalAmcInterestPaid + result.totalMgmtFee + result.totalAmcPrincipalPaid;
   const mezzCashReceived = result.totalMezzInterestPaid + result.totalMezzPrincipalPaid;
-  // 劣后净分配 = 5 年累计净分录 + 初始出资 + 通道费（含返点）
   const equityNet = result.equityProfit + result.funds.equity + result.totalChannelFee;
 
-  // 外流成本：催收 + 诉讼 + 运营（AMC 管理费已不再外流，从回收款预扣）
   let collectionAndLegal = 0;
   for (const row of result.rows) collectionAndLegal += row.collectionFee + row.legalCost;
   const externalCost = collectionAndLegal + result.totalOverhead;
 
-  // 优先级兑付（合计）= AMC 实收 + Mezz 实收
-  const priorityTotal = amcCashReceived + mezzCashReceived;
-
-  // 渲染 4 段：源 → 回收 → 三去向（AMC 兑付 / Mezz 兑付 / 劣后净分 / 外流）
   container.innerHTML = `
     <div class="flow-node flow-source-node">
       <span class="flow-label">资产本金</span>
@@ -586,15 +178,12 @@ function renderFlowOverview(result, values) {
       </div>
     </div>
   `;
-  // 静默使用 priorityTotal（调试/校验用）
-  void priorityTotal;
 }
 
-// ============ 季度现金分配瀑布图（分组柱状图） ============
+// ============ 季度现金分配瀑布图 ============
 
 function buildCashflowSeries(result) {
   const series = [];
-  // Q0：三方配资出（仅配资，无通道费；通道费计入 Q1）
   series.push({
     index: 0,
     label: "Q0",
@@ -604,13 +193,9 @@ function buildCashflowSeries(result) {
     equity: -result.funds.equity,
     isInitial: true,
   });
-  // Q1..Q20
   result.rows.forEach((row, idx) => {
-    // AMC 现金流 = 利息 + 管理费 + 本金偿还 + 首季一次性通道费
     const amcFlow = row.amcInterestPaid + row.mgmtFee + row.amcPrincipalPaid + (row.quarter === 1 ? result.totalChannelFee : 0);
-    // Mezz 现金流 = 应收利息（劣后刚性兑付）+ 本金偿还
     const mezzFlow = row.mezzInterestDue + row.mezzPrincipalPaid;
-    // 劣后 Q1 净分录 = row.equityCash − 一次性通道费（与 IRR 现金流 22 期口径一致）
     const equityFlow = row.quarter === 1 ? row.equityCash - result.totalChannelFee : row.equityCash;
     series.push({
       index: idx + 1,
@@ -638,7 +223,6 @@ function drawCashflowChart(result) {
   const height = rect.height;
   const pad = { top: 24, right: 18, bottom: 38, left: 84 };
 
-  // 计算 Y 轴范围（正负都考虑）
   let maxAbs = 0;
   series.forEach((s) => {
     maxAbs = Math.max(maxAbs, Math.abs(s.amc), Math.abs(s.mezz), Math.abs(s.equity));
@@ -662,7 +246,6 @@ function drawCashflowChart(result) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, width, height);
 
-  // 水平网格
   ctx.strokeStyle = "#eef2ef";
   ctx.lineWidth = 1;
   ctx.fillStyle = "#66736b";
@@ -678,7 +261,6 @@ function drawCashflowChart(result) {
     ctx.fillText(compactCurrency(value), 8, lineY + 4);
   }
 
-  // 0 轴（加粗）
   ctx.strokeStyle = "#9aa6a0";
   ctx.lineWidth = 1.5;
   ctx.beginPath();
@@ -686,7 +268,6 @@ function drawCashflowChart(result) {
   ctx.lineTo(width - pad.right, yZero);
   ctx.stroke();
 
-  // 柱状图：每组 3 根（AMC 橙 / Mezz 紫 / Equity 绿）
   const colors = { amc: "#b7771f", mezz: "#7c5aa6", equity: "#1d8b5b" };
   series.forEach((s) => {
     const cx = xGroup(s.index);
@@ -704,7 +285,6 @@ function drawCashflowChart(result) {
     });
   });
 
-  // X 轴标签
   ctx.fillStyle = "#66736b";
   const labelQuarters = [0, 1, 4, 8, 12, 16, 20];
   labelQuarters.forEach((q) => {
@@ -714,7 +294,6 @@ function drawCashflowChart(result) {
     ctx.fillText(`Q${q}`, cx - 10, height - 16);
   });
 
-  // hover 高亮
   if (currentHoverIndex >= 0 && currentHoverIndex < series.length) {
     drawCashflowHover(series, xGroup, yValue);
   }
@@ -734,7 +313,6 @@ function drawCashflowHover(series, xGroup, yValue) {
   ctx.stroke();
   ctx.restore();
 
-  // 三个高亮小圆
   const colors = { amc: "#b7771f", mezz: "#7c5aa6", equity: "#1d8b5b" };
   ["amc", "mezz", "equity"].forEach((key) => {
     const value = s[key];
@@ -814,7 +392,7 @@ function handleChartHover(event) {
     return;
   }
   const innerWidth = rect.width - pad.left - pad.right;
-  const totalGroups = cachedResult.rows.length + 1; // 21 groups (Q0..Q20)
+  const totalGroups = cachedResult.rows.length + 1;
   const idx = Math.round(((localX - pad.left) / innerWidth) * (totalGroups - 1));
   const clamped = Math.max(0, Math.min(totalGroups - 1, idx));
   if (clamped !== currentHoverIndex) {
@@ -847,6 +425,7 @@ function renderInsights(result, values) {
     result.funds.equity + result.equityProfit > 0 && channelFee + mgmtFee > 0
       ? ((channelFee + mgmtFee) / (result.funds.equity + result.equityProfit)) * 100
       : 0;
+
   const items = [
     {
       title: `购包价：${currency.format(result.funds.purchasePrice)}`,
@@ -875,7 +454,7 @@ function renderInsights(result, values) {
       title: `Mezz 5年总兑付：${currency.format(result.totalMezzInterestPaid + result.totalMezzPrincipalPaid)}`,
       body: `= 利息 ${currency.format(result.totalMezzInterestPaid)}（季付 ${currency.format(
         result.funds.mezz > 0
-          ? result.funds.mezz * (values.mezzRate / 100 / QUARTERS_PER_YEAR)
+          ? result.funds.mezz * (values.mezzRate / 100 / 4)
           : 0,
       )}）× 20 季 + 本金偿还 ${currency.format(result.totalMezzPrincipalPaid)}。`,
       tone: "good",
@@ -928,7 +507,7 @@ function renderInsights(result, values) {
     .join("");
 }
 
-// ============ 季度明细表（分配瀑布列） ============
+// ============ 季度明细表 ============
 
 function renderTable(result) {
   const rows = result.rows;
@@ -936,8 +515,6 @@ function renderTable(result) {
   const amcInitial = -result.funds.amc;
   const mezzInitial = -result.funds.mezz;
   const equityChannelFee = -result.totalChannelFee;
-  // Q0 行：三方配资 + 劣后付通道费，资产本金 100%，无回收
-  // 累计列以 -配资 起算（=T0 净收益），Q1..Q20 累加后 Q20 = 卡片"累计净收益"
   const q0Row = `
     <tr class="row-t0">
       <td>Q0 · 购包</td>
@@ -998,10 +575,7 @@ function renderSensitivity(values) {
     cells.push(`<div class="cell head">${multiple(multiplier)}</div>`);
     discountFactors.forEach((discount) => {
       const scenario = project(
-        {
-          ...values,
-          purchaseDiscount: discount,
-        },
+        { ...values, purchaseDiscount: discount },
         { recoveryMultiplier: multiplier },
       );
       const verdict = classify(scenario, values);
@@ -1026,7 +600,7 @@ function compactCurrency(value) {
   const sign = value < 0 ? "-" : "";
   if (abs >= 100000000) return `${sign}${(abs / 100000000).toFixed(1)}亿`;
   if (abs >= 10000) return `${sign}${(abs / 10000).toFixed(1)}万`;
-  return `${sign}${number.format(abs)}`;
+  return `${sign}${currency.format(abs).replace(/[^\d.-]/g, "")}`;
 }
 
 function updateModel() {
@@ -1039,7 +613,6 @@ function updateModel() {
   renderInsights(result, values);
   renderTable(result);
   renderSensitivity(values);
-  // 用 requestAnimationFrame 确保布局完成再绘 canvas
   requestAnimationFrame(() => drawCashflowChart(result));
 }
 

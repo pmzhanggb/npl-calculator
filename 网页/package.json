@@ -1,0 +1,9 @@
+{
+  "name": "npl-model-tests",
+  "version": "1.0.0",
+  "description": "信用卡不良债权包投资测算 - Node 测试",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}
