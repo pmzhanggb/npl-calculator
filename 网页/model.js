@@ -457,6 +457,7 @@
     monthlyOverhead: 80000,
     discountRecoveryRate: 0,
   };
+  Object.freeze(defaults);  // 防御性: 防止 app.js 误改默认值
 
   return {
     QUARTERS,

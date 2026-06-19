@@ -13,10 +13,28 @@ const {
 const defaults = MODEL_DEFAULTS;
 
 const fields = Object.keys(defaults);
-const form = document.querySelector("#modelForm");
-const resetButton = document.querySelector("#resetButton");
-const chart = document.querySelector("#cashflowChart");
-const tooltipEl = document.querySelector("#chartTooltip");
+
+// 一次性缓存所有 DOM 引用（避免每次 render 重复 querySelector）
+const $ = {};
+[
+  "modelForm", "resetButton", "cashflowChart", "chartTooltip",
+  "verdictBanner", "verdict", "verdictNote",
+  "amcInitialOut", "amcChannelFeeLine", "amcInterestLine", "amcMgmtLine",
+  "amcPrincipalLine", "amcNetProfit", "amcIrr", "amcMoic", "amcRoi", "amcPayback",
+  "mezzInitialOut", "mezzInterestLine", "mezzPrincipalLine", "mezzNetProfit",
+  "mezzIrr", "mezzMoic", "mezzRoi", "mezzPayback",
+  "equityInitialOut", "equityChannelFee", "equityRecoveryShare", "equityRebate",
+  "equityOverhead", "equityMezzInterest", "equityNetProfit", "equityIrr",
+  "equityMoic", "equityPayback",
+  "flowDiagram", "insights", "projectionRows", "sensitivityGrid",
+  "historyPanel", "saveHistoryButton", "toggleHistoryButton",
+  "clearHistoryButton", "historyList", "historyCount",
+].forEach((id) => { $[id] = document.getElementById(id); });
+
+const form = $.modelForm;
+const resetButton = $.resetButton;
+const chart = $.cashflowChart;
+const tooltipEl = $.chartTooltip;
 const ctx = chart.getContext("2d");
 
 let cachedResult = null;
@@ -50,14 +68,14 @@ function discountInZhe(value) {
 
 function setDefaults() {
   fields.forEach((field) => {
-    document.querySelector(`#${field}`).value = defaults[field];
+    form.querySelector(`#${field}`).value = defaults[field];
   });
   updateModel();
 }
 
 function getInputs() {
   return fields.reduce((values, field) => {
-    values[field] = Number(document.querySelector(`#${field}`).value) || 0;
+    values[field] = Number(form.querySelector(`#${field}`).value) || 0;
     return values;
   }, {});
 }
@@ -66,27 +84,26 @@ function getInputs() {
 
 function renderMetrics(result, values) {
   const verdict = classify(result, values);
-  const banner = document.querySelector("#verdictBanner");
-  banner.className = `verdict-banner ${verdict.className}`;
+  $.verdictBanner.className = `verdict-banner ${verdict.className}`;
 
-  document.querySelector("#verdict").textContent = verdict.label;
-  document.querySelector("#verdictNote").textContent = verdict.note;
+  $.verdict.textContent = verdict.label;
+  $.verdictNote.textContent = verdict.note;
 
   // AMC 卡
-  document.querySelector("#amcInitialOut").textContent = `−${currency.format(result.funds.amc)}`;
-  document.querySelector("#amcChannelFeeLine").textContent = currency.format(result.totalChannelFee);
-  document.querySelector("#amcInterestLine").textContent = currency.format(result.totalAmcInterestPaid);
-  document.querySelector("#amcMgmtLine").textContent = currency.format(result.totalMgmtFee);
-  document.querySelector("#amcPrincipalLine").textContent = currency.format(result.totalAmcPrincipalPaid);
-  document.querySelector("#amcNetProfit").textContent = currency.format(result.amcNetProfit);
-  document.querySelector("#amcIrr").textContent = percent(result.amcIrr);
-  document.querySelector("#amcMoic").textContent = Number.isFinite(result.amcMoic)
+  $.amcInitialOut.textContent = `−${currency.format(result.funds.amc)}`;
+  $.amcChannelFeeLine.textContent = currency.format(result.totalChannelFee);
+  $.amcInterestLine.textContent = currency.format(result.totalAmcInterestPaid);
+  $.amcMgmtLine.textContent = currency.format(result.totalMgmtFee);
+  $.amcPrincipalLine.textContent = currency.format(result.totalAmcPrincipalPaid);
+  $.amcNetProfit.textContent = currency.format(result.amcNetProfit);
+  $.amcIrr.textContent = percent(result.amcIrr);
+  $.amcMoic.textContent = Number.isFinite(result.amcMoic)
     ? `${result.amcMoic.toFixed(2)}x`
     : "-";
-  document.querySelector("#amcRoi").textContent = Number.isFinite(result.amcRoi)
+  $.amcRoi.textContent = Number.isFinite(result.amcRoi)
     ? percent(result.amcRoi, 1)
     : "无配资";
-  document.querySelector("#amcPayback").textContent =
+  $.amcPayback.textContent =
     result.amcPaybackQuarter !== null
       ? `Q${result.amcPaybackQuarter}`
       : result.funds.amc > 0
@@ -94,18 +111,18 @@ function renderMetrics(result, values) {
         : "无配资";
 
   // Mezz 卡
-  document.querySelector("#mezzInitialOut").textContent = `−${currency.format(result.funds.mezz)}`;
-  document.querySelector("#mezzInterestLine").textContent = currency.format(result.totalMezzInterestPaid);
-  document.querySelector("#mezzPrincipalLine").textContent = currency.format(result.totalMezzPrincipalPaid);
-  document.querySelector("#mezzNetProfit").textContent = currency.format(result.mezzNetProfit);
-  document.querySelector("#mezzIrr").textContent = percent(result.mezzIrr);
-  document.querySelector("#mezzMoic").textContent = Number.isFinite(result.mezzMoic)
+  $.mezzInitialOut.textContent = `−${currency.format(result.funds.mezz)}`;
+  $.mezzInterestLine.textContent = currency.format(result.totalMezzInterestPaid);
+  $.mezzPrincipalLine.textContent = currency.format(result.totalMezzPrincipalPaid);
+  $.mezzNetProfit.textContent = currency.format(result.mezzNetProfit);
+  $.mezzIrr.textContent = percent(result.mezzIrr);
+  $.mezzMoic.textContent = Number.isFinite(result.mezzMoic)
     ? `${result.mezzMoic.toFixed(2)}x`
     : "-";
-  document.querySelector("#mezzRoi").textContent = Number.isFinite(result.mezzRoi)
+  $.mezzRoi.textContent = Number.isFinite(result.mezzRoi)
     ? percent(result.mezzRoi, 1)
     : "无配资";
-  document.querySelector("#mezzPayback").textContent =
+  $.mezzPayback.textContent =
     result.mezzPaybackQuarter !== null
       ? `Q${result.mezzPaybackQuarter}`
       : result.funds.mezz > 0
@@ -113,18 +130,18 @@ function renderMetrics(result, values) {
         : "无配资";
 
   // 劣后卡
-  document.querySelector("#equityInitialOut").textContent = `−${currency.format(result.funds.equity)}`;
-  document.querySelector("#equityChannelFee").textContent = `−${currency.format(result.totalChannelFee)}`;
-  document.querySelector("#equityRecoveryShare").textContent = `+${currency.format(result.totalResidual)}`;
-  document.querySelector("#equityRebate").textContent = `+${currency.format(result.totalRebate)}`;
-  document.querySelector("#equityOverhead").textContent = `−${currency.format(result.totalOverhead)}`;
-  document.querySelector("#equityMezzInterest").textContent = `−${currency.format(result.totalMezzInterestPaid)}`;
-  document.querySelector("#equityNetProfit").textContent = currency.format(result.equityProfit);
-  document.querySelector("#equityIrr").textContent = percent(result.irr);
-  document.querySelector("#equityMoic").textContent = Number.isFinite(result.moic)
+  $.equityInitialOut.textContent = `−${currency.format(result.funds.equity)}`;
+  $.equityChannelFee.textContent = `−${currency.format(result.totalChannelFee)}`;
+  $.equityRecoveryShare.textContent = `+${currency.format(result.totalResidual)}`;
+  $.equityRebate.textContent = `+${currency.format(result.totalRebate)}`;
+  $.equityOverhead.textContent = `−${currency.format(result.totalOverhead)}`;
+  $.equityMezzInterest.textContent = `−${currency.format(result.totalMezzInterestPaid)}`;
+  $.equityNetProfit.textContent = currency.format(result.equityProfit);
+  $.equityIrr.textContent = percent(result.irr);
+  $.equityMoic.textContent = Number.isFinite(result.moic)
     ? `${result.moic.toFixed(2)}x`
     : "-";
-  document.querySelector("#equityPayback").textContent =
+  $.equityPayback.textContent =
     result.paybackQuarter !== null
       ? `Q${result.paybackQuarter}`
       : "5年未回本";
@@ -133,7 +150,6 @@ function renderMetrics(result, values) {
 // ============ 5 年资金流向总览 ============
 
 function renderFlowOverview(result, values) {
-  const container = document.querySelector("#flowDiagram");
   const recovery = result.totalRecovery;
   const amcCashReceived = result.totalChannelFee + result.totalAmcInterestPaid + result.totalMgmtFee + result.totalAmcPrincipalPaid;
   const mezzCashReceived = result.totalMezzInterestPaid + result.totalMezzPrincipalPaid;
@@ -143,7 +159,7 @@ function renderFlowOverview(result, values) {
   for (const row of result.rows) collectionAndLegal += row.collectionFee + row.legalCost;
   const externalCost = collectionAndLegal + result.totalOverhead;
 
-  container.innerHTML = `
+  $.flowDiagram.innerHTML = `
     <div class="flow-node flow-source-node">
       <span class="flow-label">资产本金</span>
       <span class="flow-value">${currency.format(values.faceValue)}</span>
@@ -416,8 +432,7 @@ chart.addEventListener("mouseleave", handleChartLeave);
 
 // ============ 投委口径 ============
 
-function renderInsights(result, values) {
-  const breakEven = findBreakEvenMultiplier(values);
+function renderInsights(result, values, breakEven, baseline) {
   const totalRecoveryRate = values.faceValue > 0 ? (result.totalRecovery / values.faceValue) * 100 : 0;
   const channelFee = result.totalChannelFee;
   const mgmtFee = result.totalMgmtFee;
@@ -425,6 +440,18 @@ function renderInsights(result, values) {
     result.funds.equity + result.equityProfit > 0 && channelFee + mgmtFee > 0
       ? ((channelFee + mgmtFee) / (result.funds.equity + result.equityProfit)) * 100
       : 0;
+
+  // 对比式折扣折损: 若不打折, 期末剩余本金应为 baseline.remainingAssetPrincipal
+  const discountRate = values.discountRecoveryRate || 0;
+  const discountInsight = {
+    title: `折扣折损：${currency.format(result.totalWritedown)}`,
+    body: discountRate > 0 && baseline
+      ? `若不打折, 期末剩余本金应为 ${currency.format(baseline.remainingAssetPrincipal)}; 当前 ${currency.format(result.remainingAssetPrincipal)}, 即"白送"了 ${currency.format(result.totalWritedown)} 资产本金给持卡人。`
+      : discountRate > 0
+        ? `因 ${priceRate(discountRate)} 折扣, 5 年累计额外抹销本金 ${currency.format(result.totalWritedown)}（实际回款不变, 仅影响后续季度潜在回收能力）。`
+        : `当前无折扣 (0%) — 期末剩余本金 ${currency.format(result.remainingAssetPrincipal)} 即理论最小值。`,
+    tone: result.totalWritedown > 0 ? "warn" : "good",
+  };
 
   const items = [
     {
@@ -471,13 +498,7 @@ function renderInsights(result, values) {
       )}。`,
       tone: totalRecoveryRate > values.purchaseDiscount ? "good" : "warn",
     },
-    {
-      title: `折扣折损：${currency.format(result.totalWritedown)}`,
-      body: `因 ${priceRate(values.discountRecoveryRate)} 折扣, 5 年累计额外抹销本金 ${currency.format(
-        result.totalWritedown,
-      )}（实际回款不变, 仅影响后续季度潜在回收能力）。`,
-      tone: result.totalWritedown > 0 ? "warn" : "good",
-    },
+    discountInsight,
     {
       title: `回收安全倍率：${Number.isFinite(breakEven) ? multiple(1 / breakEven) : "-"}`,
       body:
@@ -495,7 +516,7 @@ function renderInsights(result, values) {
     },
   ];
 
-  document.querySelector("#insights").innerHTML = items
+  $.insights.innerHTML = items
     .map(
       (item) => `
         <div class="insight ${item.tone === "good" ? "" : item.tone}">
@@ -555,7 +576,7 @@ function renderTable(result) {
       `,
     )
     .join("");
-  document.querySelector("#projectionRows").innerHTML = q0Row + periodRows;
+  $.projectionRows.innerHTML = q0Row + periodRows;
 }
 
 // ============ 敏感性热力 ============
@@ -592,7 +613,7 @@ function renderSensitivity(values) {
     });
   });
 
-  document.querySelector("#sensitivityGrid").innerHTML = cells.join("");
+  $.sensitivityGrid.innerHTML = cells.join("");
 }
 
 function compactCurrency(value) {
@@ -606,19 +627,45 @@ function compactCurrency(value) {
 function updateModel() {
   const values = getInputs();
   const result = project(values);
+  // baseline (一次额外 project) 用于投委对比式, ~15ms
+  const baseline = project({ ...values, discountRecoveryRate: 0 });
   cachedResult = result;
   if (currentHoverIndex >= result.rows.length + 1) currentHoverIndex = -1;
+
+  // 第 1 帧: 用户最关心的数字 + 流程图 (~30ms, 用户 16ms 看到)
   renderMetrics(result, values);
   renderFlowOverview(result, values);
-  renderInsights(result, values);
-  renderTable(result);
-  renderSensitivity(values);
-  requestAnimationFrame(() => drawCashflowChart(result));
+
+  // 第 2 帧: 明细表 + 投委（breakEven 跑完后才执行）
+  requestAnimationFrame(() => {
+    renderTable(result);
+    // findBreakEvenMultiplier (~2.8s) 也放第 2 帧异步算, 算完后再 renderInsights
+    const breakEven = findBreakEvenMultiplier(values);
+    renderInsights(result, values, breakEven, baseline);
+  });
+
+  // 第 3 帧: 敏感性 + Canvas
+  requestAnimationFrame(() => {
+    renderSensitivity(values);
+    drawCashflowChart(result);
+  });
 }
 
-form.addEventListener("input", updateModel);
+// input 防抖: 拖滑块时连续触发合并到下一帧
+let pendingUpdate = null;
+form.addEventListener("input", () => {
+  if (pendingUpdate) return;
+  pendingUpdate = requestAnimationFrame(() => {
+    pendingUpdate = null;
+    updateModel();
+  });
+});
 resetButton.addEventListener("click", setDefaults);
-window.addEventListener("resize", updateModel);
+window.addEventListener("resize", () => {
+  if (pendingUpdate) cancelAnimationFrame(pendingUpdate);
+  pendingUpdate = null;
+  updateModel();
+});
 
 // ============ 历史记录（LocalStorage 持久化） ============
 
@@ -694,7 +741,7 @@ function loadSnapshot(id) {
   const ok = confirm(`加载"${item.name}"将覆盖当前参数，继续吗？`);
   if (!ok) return;
   fields.forEach((field) => {
-    const input = document.querySelector(`#${field}`);
+    const input = form.querySelector(`#${field}`);
     if (input && item.values[field] !== undefined) {
       input.value = item.values[field];
     }
@@ -721,34 +768,30 @@ function clearAllSnapshots() {
 }
 
 function toggleHistoryPanel() {
-  const panel = document.querySelector("#historyPanel");
-  panel.hidden = !panel.hidden;
+  $.historyPanel.hidden = !$.historyPanel.hidden;
 }
 
 function flashHistoryButton(text) {
-  const btn = document.querySelector("#saveHistoryButton");
-  const original = btn.innerHTML;
-  btn.innerHTML = `<span class="btn-icon" aria-hidden="true">✓</span> ${text}`;
-  btn.disabled = true;
+  const original = $.saveHistoryButton.innerHTML;
+  $.saveHistoryButton.innerHTML = `<span class="btn-icon" aria-hidden="true">✓</span> ${text}`;
+  $.saveHistoryButton.disabled = true;
   setTimeout(() => {
-    btn.innerHTML = original;
-    btn.disabled = false;
+    $.saveHistoryButton.innerHTML = original;
+    $.saveHistoryButton.disabled = false;
   }, 1200);
 }
 
 function renderHistoryList() {
   const items = getHistory();
-  const listEl = document.querySelector("#historyList");
-  const countEl = document.querySelector("#historyCount");
-  countEl.textContent = String(items.length);
-  countEl.classList.toggle("is-empty", items.length === 0);
+  $.historyCount.textContent = String(items.length);
+  $.historyCount.classList.toggle("is-empty", items.length === 0);
 
   if (!items.length) {
-    listEl.innerHTML = `<div class="history-empty">还没有保存的快照。点击"保存当前"记录一组参数，刷新或关闭浏览器后仍可恢复。</div>`;
+    $.historyList.innerHTML = `<div class="history-empty">还没有保存的快照。点击"保存当前"记录一组参数，刷新或关闭浏览器后仍可恢复。</div>`;
     return;
   }
 
-  listEl.innerHTML = items
+  $.historyList.innerHTML = items
     .map(
       (item) => `
         <div class="history-item" data-id="${item.id}">
@@ -777,9 +820,9 @@ function escapeHtml(value) {
   }[ch]));
 }
 
-document.querySelector("#saveHistoryButton").addEventListener("click", saveCurrentSnapshot);
-document.querySelector("#toggleHistoryButton").addEventListener("click", toggleHistoryPanel);
-document.querySelector("#clearHistoryButton").addEventListener("click", clearAllSnapshots);
+$.saveHistoryButton.addEventListener("click", saveCurrentSnapshot);
+$.toggleHistoryButton.addEventListener("click", toggleHistoryPanel);
+$.clearHistoryButton.addEventListener("click", clearAllSnapshots);
 document.querySelector("#historyList").addEventListener("click", (event) => {
   const btn = event.target.closest("button[data-action]");
   if (!btn) return;

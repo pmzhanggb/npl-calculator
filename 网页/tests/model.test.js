@@ -385,3 +385,90 @@ test("runQuarterlyLoop: 返回的所有季度字段齐全", () => {
     assert.ok("equityCash" in row);
   });
 });
+
+// ============ 13. 边界场景（V1.2 新增）============
+
+test("边界: faceValue=0 时所有金额字段应为 0", () => {
+  const r = project({ ...defaults, faceValue: 0 });
+  assert.equal(r.funds.purchasePrice, 0);
+  assert.equal(r.funds.equity, 0);
+  assert.equal(r.funds.amc, 0);
+  assert.equal(r.funds.mezz, 0);
+  assert.equal(r.totalRecovery, 0);
+  assert.equal(r.totalAmcInterestPaid, 0);
+  assert.equal(r.totalMezzInterestPaid, 0);
+  assert.equal(r.totalChannelFee, 0);
+  assert.equal(r.remainingAssetPrincipal, 0);
+});
+
+test("边界: purchaseDiscount=0（白送）时配资全 0", () => {
+  const r = project({ ...defaults, purchaseDiscount: 0 });
+  assert.equal(r.funds.purchasePrice, 0);
+  assert.equal(r.funds.equity, 0);
+  assert.equal(r.funds.amc, 0);
+  assert.equal(r.funds.mezz, 0);
+  assert.equal(r.totalChannelFee, 0);
+});
+
+test("边界: 全部 recovery=0 时 IRR=NaN（无可分配现金流）", () => {
+  const r = project({
+    ...defaults,
+    year1QuarterlyRecovery: 0,
+    year2QuarterlyRecovery: 0,
+    year3QuarterlyRecovery: 0,
+    year4QuarterlyRecovery: 0,
+    year5QuarterlyRecovery: 0,
+  });
+  // 无回款 → 无任何正现金流 → IRR 求解无根
+  assert.ok(Number.isNaN(r.irr));
+  assert.ok(r.equityProfit < 0);  // 劣后至少要承担 Mezz 利息
+});
+
+test("边界: amcRatio=0 → 通道费为 0（无 AMC 配资则无通道费）", () => {
+  const r = project({ ...defaults, amcRatio: 0 });
+  assert.equal(r.funds.amc, 0);
+  assert.equal(r.totalChannelFee, 0);
+  // AMC 累计净收益 = -配资 + 全部为 0 = 0
+  assert.equal(r.amcNetProfit, 0);
+});
+
+test("边界: mezzRatio=0 + mezzRate=0 → Mezz 累计为 0", () => {
+  const r = project({ ...defaults, mezzRatio: 0 });
+  assert.equal(r.funds.mezz, 0);
+  assert.equal(r.totalMezzInterestPaid, 0);
+  assert.equal(r.totalMezzPrincipalPaid, 0);
+  assert.equal(r.mezzNetProfit, 0);
+});
+
+test("边界: discountRecoveryRate=0 与不传值完全一致", () => {
+  const baseline = project(defaults);
+  const explicit = project({ ...defaults, discountRecoveryRate: 0 });
+  assert.equal(baseline.totalWritedown, explicit.totalWritedown);
+  assert.equal(baseline.remainingAssetPrincipal, explicit.remainingAssetPrincipal);
+  assert.equal(baseline.totalRecovery, explicit.totalRecovery);
+});
+
+test("classify: watch 分支（盈利但 IRR 未达标）", () => {
+  // 构造: 高回收 + 极高 target → IRR < target 但优先级清偿 + 盈利
+  // 实测 3% 季回收率下 IRR ≈ 634%, 所以 target 设到 1000% 才能触发 watch
+  const r = project({
+    ...defaults,
+    year1QuarterlyRecovery: 3,
+    year2QuarterlyRecovery: 3,
+    year3QuarterlyRecovery: 3,
+    year4QuarterlyRecovery: 3,
+    year5QuarterlyRecovery: 3,
+  });
+  assert.ok(Number.isFinite(r.irr));
+  // 优先级清偿 + equityProfit > 0 已确认
+  assert.ok(r.equityProfit > 0);
+  assert.ok(r.remainingSeniorPrincipal <= 1);
+  // target=1000%, IRR=634% → watch
+  const c = classify(r, { ...defaults, targetIrr: 1000 });
+  assert.equal(c.className, "watch");
+  assert.equal(c.label, "可谈价");
+});
+
+test("Object.freeze: defaults 不可写（防御性）", () => {
+  assert.throws(() => { defaults.faceValue = 0; }, TypeError);
+});
