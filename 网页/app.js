@@ -7,6 +7,7 @@ const {
   project,
   classify,
   findBreakEvenMultiplier,
+  migrateSnapshotValues,
   defaults: MODEL_DEFAULTS,
 } = window.NPLModel;
 
@@ -495,7 +496,7 @@ function renderInsights(result, values, breakEven, baseline) {
       title: `5年累计回收：${currency.format(result.totalRecovery)}`,
       body: `约占原始账面本金的 ${percent(totalRecoveryRate)}，期末剩余资产本金 ${currency.format(
         result.remainingAssetPrincipal,
-      )}。`,
+      )}（按月回收率假设 ×3 折算季率）。`,
       tone: totalRecoveryRate > values.purchaseDiscount ? "good" : "warn",
     },
     discountInsight,
@@ -709,6 +710,7 @@ function summarizeValues(values) {
   return [
     `${(values.faceValue / 100000000).toFixed(2)}亿`,
     `${values.purchaseDiscount}折`,
+    `月回收 ${values.year1MonthlyRecovery}/${values.year2MonthlyRecovery}%`,
     `AMC ${values.amcRate}%`,
     `劣后${values.equityRatio}%`,
     `目标IRR ${values.targetIrr}%`,
@@ -736,16 +738,26 @@ function saveCurrentSnapshot() {
 }
 
 function loadSnapshot(id) {
-  const item = getHistory().find((entry) => entry.id === id);
-  if (!item) return;
+  const items = getHistory();
+  const idx = items.findIndex((entry) => entry.id === id);
+  if (idx < 0) return;
+  const item = items[idx];
   const ok = confirm(`加载"${item.name}"将覆盖当前参数，继续吗？`);
   if (!ok) return;
+  // V1.3 兼容: 旧快照字段名 (yearNQuarterlyRecovery) → 新字段 (yearNMonthlyRecovery), 季率 → 月率 /3
+  const { values: migratedValues, migrated } = migrateSnapshotValues(item.values);
   fields.forEach((field) => {
     const input = form.querySelector(`#${field}`);
-    if (input && item.values[field] !== undefined) {
-      input.value = item.values[field];
+    if (input && migratedValues[field] !== undefined) {
+      input.value = migratedValues[field];
     }
   });
+  // 升级后写回（保留原 id, 改字段名）
+  if (migrated) {
+    items[idx] = { ...item, values: migratedValues };
+    writeHistory(items);
+    renderHistoryList();
+  }
   updateModel();
 }
 

@@ -28,13 +28,14 @@
   }
 
   function recoveryRates(values, multiplier = 1) {
+    // V1.3: 输入层为月回收率（%/月）, 内部 ×3 换算成季率（%/季）
     return [
-      values.year1QuarterlyRecovery,
-      values.year2QuarterlyRecovery,
-      values.year3QuarterlyRecovery,
-      values.year4QuarterlyRecovery,
-      values.year5QuarterlyRecovery,
-    ].map((rate) => (rate / 100) * multiplier);
+      values.year1MonthlyRecovery,
+      values.year2MonthlyRecovery,
+      values.year3MonthlyRecovery,
+      values.year4MonthlyRecovery,
+      values.year5MonthlyRecovery,
+    ].map((rate) => (rate / 100) * 3 * multiplier);
   }
 
   // ============ 季度循环（纯函数） ============
@@ -432,17 +433,45 @@
     return { label: "不建议", className: "risk", note: "优先级清偿或劣后收益存在明显压力" };
   }
 
+  // ============ 历史快照迁移（V1.3 兼容） ============
+
+  // 检测旧字段名 → 按 /3 换算到月率, 并删除旧字段
+  function migrateSnapshotValues(values) {
+    const oldToNew = {
+      year1QuarterlyRecovery: "year1MonthlyRecovery",
+      year2QuarterlyRecovery: "year2MonthlyRecovery",
+      year3QuarterlyRecovery: "year3MonthlyRecovery",
+      year4QuarterlyRecovery: "year4MonthlyRecovery",
+      year5QuarterlyRecovery: "year5MonthlyRecovery",
+    };
+    const out = { ...values };
+    let migrated = false;
+    for (const [oldKey, newKey] of Object.entries(oldToNew)) {
+      if (out[oldKey] !== undefined && out[newKey] === undefined) {
+        out[newKey] = Number((Number(out[oldKey]) / 3).toFixed(2));  // 季率 → 月率
+        delete out[oldKey];
+        migrated = true;
+      } else if (out[oldKey] !== undefined && out[newKey] !== undefined) {
+        // 同时存在新旧字段: 保留新字段, 删除旧字段
+        delete out[oldKey];
+        migrated = true;
+      }
+    }
+    return { values: out, migrated };
+  }
+
   // ============ 默认参数（导出便于测试） ============
 
   const defaults = {
     faceValue: 100000000,
     purchaseDiscount: 2.8,
     targetIrr: 25,
-    year1QuarterlyRecovery: 1.05,
-    year2QuarterlyRecovery: 0.72,
-    year3QuarterlyRecovery: 0.48,
-    year4QuarterlyRecovery: 0.30,
-    year5QuarterlyRecovery: 0.18,
+    // V1.3: 月回收率（%/月）— 旧季率 /3 换算
+    year1MonthlyRecovery: 0.35,
+    year2MonthlyRecovery: 0.24,
+    year3MonthlyRecovery: 0.16,
+    year4MonthlyRecovery: 0.10,
+    year5MonthlyRecovery: 0.06,
     equityRatio: 25,
     amcRatio: 55,
     mezzRatio: 20,
@@ -473,5 +502,6 @@
     findMaxDiscount,
     project,
     classify,
+    migrateSnapshotValues,
   };
 });
