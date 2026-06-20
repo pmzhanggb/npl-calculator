@@ -679,7 +679,6 @@ function getHistory() {
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
-    console.warn("读取历史记录失败：", err);
     return [];
   }
 }
@@ -690,7 +689,6 @@ function writeHistory(items) {
     return true;
   } catch (err) {
     alert("保存失败：浏览器存储可能被禁用或配额已满。");
-    console.error(err);
     return false;
   }
 }

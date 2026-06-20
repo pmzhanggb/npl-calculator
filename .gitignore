@@ -69,3 +69,11 @@ temp/
 
 # Claude Code 工具配置（按用户/机器隔离，不入仓库）
 .claude/
+
+# Node 测试代码（不发到公网, 只本地跑）
+网页/tests/
+网页/tests_records/
+网页/package.json
+
+# 仓库根的测试记录目录（独立审计产物）
+tests_records/

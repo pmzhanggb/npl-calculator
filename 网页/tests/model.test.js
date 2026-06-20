@@ -9,7 +9,7 @@ const assert = require("node:assert/strict");
 const M = require("../model.js");
 
 const { defaults, project, runQuarterlyLoop, financing, recoveryRates,
-        annualizedIrr, classify, findBreakEvenMultiplier, findMaxDiscount,
+        annualizedIrr, classify, findBreakEvenMultiplier,
         migrateSnapshotValues } = M;
 
 // 允许 1 元的浮点累积误差
@@ -330,14 +330,6 @@ test("classify: 默认参数（亏本）→ 不建议 (risk)", () => {
 });
 
 // ============ 10. 二分反推 ============
-
-test("findMaxDiscount: 低价必达标, 高价必不达标 → 返回边界", () => {
-  const v = { ...defaults, targetIrr: 100 };  // 极高目标, 仅低价能达
-  const max = findMaxDiscount(v);
-  // 应当返回 ≤ 5% 的某个值
-  assert.ok(Number.isFinite(max));
-  assert.ok(max > 0 && max < 10);
-});
 
 test("findBreakEvenMultiplier: 找到让 equityProfit = 0 的倍率", () => {
   const v = { ...defaults, year1MonthlyRecovery: 0.67, year2MonthlyRecovery: 0.33 };  // 2%/3 ≈ 0.67, 1%/3 ≈ 0.33

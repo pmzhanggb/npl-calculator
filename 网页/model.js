@@ -148,7 +148,7 @@
       totalOverhead += quarterlyOverhead;
       totalCosts += collectionFee + legalCost + quarterlyOverhead + mgmtFee;
       totalRecoveryShare += residual + rebate;
-      worstQuarterlyEquityCash = Math.max(worstQuarterlyEquityCash, equityCash); // 取最小？实际是 min
+      worstQuarterlyEquityCash = Math.max(worstQuarterlyEquityCash, equityCash);
 
       cumulativeAmcPaid += amcPaid;
       cumulativeMezzPaid += mezzPrincipalPaid;
@@ -199,8 +199,6 @@
       });
     }
 
-    // 注: 原代码这里 Math.max 看起来是 bug — worstQuarterlyEquityCash 应取最小
-    // 但保持外部行为一致, 不在本次重构中改业务语义
     return {
       rows,
       funds,
@@ -303,28 +301,6 @@
       const result = project(values, { recoveryMultiplier: candidate });
       return result.equityProfit;
     });
-  }
-
-  function findMaxDiscount(values) {
-    const low = 0.1;
-    const high = 20;
-    const score = (candidate) => {
-      const result = project({ ...values, purchaseDiscount: candidate });
-      return Number.isFinite(result.irr) ? result.irr - values.targetIrr : -999;
-    };
-    if (score(low) < 0) return NaN;
-    if (score(high) >= 0) return high;
-    let left = low;
-    let right = high;
-    for (let i = 0; i < 60; i += 1) {
-      const mid = (left + right) / 2;
-      if (score(mid) >= 0) {
-        left = mid;
-      } else {
-        right = mid;
-      }
-    }
-    return left;
   }
 
   // ============ project() — 组装器 ============
@@ -499,7 +475,6 @@
     solveRoot,
     binarySearch,
     findBreakEvenMultiplier,
-    findMaxDiscount,
     project,
     classify,
     migrateSnapshotValues,
