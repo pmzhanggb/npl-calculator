@@ -85,6 +85,20 @@ label {
   text-transform: uppercase;
 }
 
+.legal-disclaimer {
+  background: #fef9e7;
+  border-bottom: 1px solid #f1c40f;
+  color: #7d6608;
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 10px 20px;
+  text-align: center;
+}
+
+.legal-disclaimer strong {
+  color: #6e2c00;
+}
+
 h1,
 h2 {
   margin: 0;
