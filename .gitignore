@@ -77,3 +77,8 @@ temp/
 
 # 仓库根的测试记录目录（独立审计产物）
 tests_records/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
